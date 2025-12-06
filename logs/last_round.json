@@ -1,0 +1,47 @@
+{
+    "timestamp": "2025-12-06T16:59:17.770151",
+    "server_seed": "2e9a09921f2cc665d802ad7fc588e1f38132b94d8e9ef4bc01b78977dcd831bb",
+    "client_seed": "42316f6e2be89f8361352ce7a9f5fc39d35a610228df2a75d34bb76089f4923f",
+    "client_seed_mac": "6fd11ef67cd74d3eadd8b3dd31a184c71ffdf0d19e17346176e04f0d5d23eec5",
+    "mac_message": "42316f6e2be89f8361352ce7a9f5fc39d35a610228df2a75d34bb76089f4923f:7",
+    "commit": "5738ee11aa0d9858e9b4ae4e5f7029b6f9330e0524802c319c69faca0419dd0f",
+    "nonce": 7,
+    "used_cards": [
+        [
+            "7",
+            "\u2665"
+        ],
+        [
+            "2",
+            "\u2660"
+        ],
+        [
+            "J",
+            "\u2666"
+        ],
+        [
+            "7",
+            "\u2663"
+        ],
+        [
+            "Q",
+            "\u2663"
+        ],
+        [
+            "A",
+            "\u2666"
+        ],
+        [
+            "10",
+            "\u2663"
+        ],
+        [
+            "8",
+            "\u2663"
+        ]
+    ],
+    "result": [
+        "Jugador 1 pierde.",
+        "Jugador 2 pierde (se pas\u00f3)."
+    ]
+}

@@ -11,183 +11,142 @@ Queremos un casino donde:
 - Los juegos tienen resultados que se pueden verificar después.
 - El servidor no puede cambiar la aleatoriedad una vez que mostró el commit.
 - El jugador tampoco puede hacerse el vivo y mandar seeds falsas.
-- Todo el proceso (ronda completa) queda fijado por dos seeds: la del servidor y la del jugador, más un `nonce` que ahora sí aumenta bien.
+- Todo el proceso (ronda completa) queda fijado por dos seeds: la del servidor y la del jugador, más un `nonce` que aumenta en cada ronda (ya implementado).
 
-Flujo básico:  
-El casino muestra un commit sobre su seed, el jugador manda la suya, se corre el juego, y al final el casino revela su seed original para verificación.  
-El jugador reconstruye la aleatoriedad y revisa si el servidor actuó correctamente o si intentó pasarse de listo.
+Flujo básico:
+1. El casino muestra un commit sobre su seed.  
+2. El jugador manda su client_seed.  
+3. El juego corre usando una función provably fair determinista.  
+4. El casino revela su server_seed.  
+5. El jugador verifica que no hubo mano negra.
 
 ---
 
-## Consideraciones nuevas según feedback 
+## Consideraciones nuevas según feedback
 
 ### 1. Qué pasa si el servidor "cambia" la client_seed que envió el jugador?
-Nuestro sistema como estaba no lo protegía explícitamente.  
-Para evitar esta situación, debemos:
+~~Nuestro sistema como estaba no lo protegía explícitamente.~~  
+Ahora SÍ:
 
-- Autenticar los mensajes entre cliente y servidor (MAC o AEAD).
-- Guardar (y mostrar) la client_seed que el servidor dice usar durante la ronda.
-- Implementar un verificador externo que puede revisar:
-  - server_seed revelada,
-  - client_seed enviada por el usuario,
-  - nonce de la ronda,
-  - secuencia de cartas.
+- Se implementó HMAC-SHA256 para autenticar la client_seed.
+- Se guarda silenciosamente la client_seed y su MAC en el log.
+- `verify.py` revisa que el MAC coincida, confirmando que nada fue alterado.
 
-Así, si el servidor inventa una client_seed distinta, eso queda inmediatamente en evidencia al reconstruir la ronda.
+### 2. Por qué SHA-256?
+Nos da un compromiso con:
+- **Hiding** (seed del servidor queda oculta)
+- **Binding** (el servidor no puede cambiarla después)
 
-### 2. Por qué SHA-256?  
-- Porque nos da un **commitment** con propiedades:
-  - **Hiding**: el hash no filtra la seed del servidor.
-  - **Binding**: el servidor no puede cambiar su seed después.
-- Es rápido, estándar y fácil de verificar.
-- No nos mete dependencias innecesarias (como llaves públicas).
+Implementado en `commitments.py`.
 
-### 3. Libertades del casino en blackjack  
-Blackjack es especial porque el casino tiene **reglas fijas** ("pide hasta 17", etc.). Esto significa:
-- El casino no puede reaccionar estratégicamente a lo que hace el jugador.
-- Dado un mazo ordenado por el RNG, las acciones del dealer quedan 100% determinadas.
-- Entonces el servidor tampoco puede influir en la partida después del barajado.
+### 3. Libertades del casino en blackjack
+- El dealer sigue una regla fija (pedir bajo 17).
+- Dado el mazo generado, no puede tomar decisiones estratégicas.
+- Perfecto para provably fair: ya está implementado.
 
-Esto NO es cierto en juegos donde los jugadores pueden reaccionar a otros (poker, por ejemplo), ya que ahí sí hay decisiones estratégicas de más de un participante.
+### 4. Múltiples jugadores usando el mismo mazo
+Aún no implementado.  
+Tarea futura: ver cómo repartir cartas sin favorecer a nadie.
 
-### 4. Múltiples jugadores usando el mismo mazo  
-Si dos jugadores están sentados en la misma mesa:
-- Todos deben usar **el mismo mazo generado** por el RNG.
-- El orden de carta 1, 2, 3, ... debe ser verificable por todos los jugadores simultáneamente.
-- Hay que formalizar:
-  - cómo se reparten las cartas entre jugadores,
-  - cómo se evita que el casino favorezca a uno u otro,
-  - cómo se mantiene un solo flujo de RNG común.
+### 5. Nonce ahora sí aumenta
+Antes era fijo.  
+~~Pendiente~~ → **YA IMPLEMENTADO** en `seeds.py` y `casino_round.py`.
 
-### 5. Nonce ahora sí aumenta  
-Antes teníamos `nonce = 0` fijo.  
-Ahora el plan es:
-- tener un `nonce` por ronda,  
-- incrementarlo (`nonce += 1`) cada vez que se juega una nueva mano.
+### 6. Llaves públicas/privadas
+Aún no necesarias.  
+El MAC simétrico cubre la integridad entre cliente y servidor en este proyecto.
 
-Además, dejamos de concatenar con símbolos como `|`, porque realmente no aporta nada: basta concatenar strings o bytes limpios.
+### 7. Debemos crear verify.py
+~~Pendiente.~~  
+→ **YA IMPLEMENTADO** con commit check, MAC check y reconstrucción de baraja.
 
-### 6. No es necesario incluir llaves públicas/privadas… salvo que sus ataques lo requieran  
-Nuestro sistema base no necesita criptografía asimétrica, *a menos que*:
-- queramos evitar que un tercero modifique mensajes (pero eso se resuelve con MAC/AEAD),
-- queramos un verificador descentralizado (ahí entran VRF/Smart Contracts).
+### 8. Explicar Rejection Sampling
+El RNG basado en SHA256 usa rejection sampling para obtener enteros uniformes.  
+Explicado en el informe y aplicado en `fair_random.py`.
 
-Pero no las metemos “porque sí”, para evitar complejidad innecesaria.
-
-### 7. Debemos crear un verify.py  
-El ayudante lo pidió. Tareas:
-- Input: server_seed, client_seed, nonce, historial de cartas entregadas.
-- Output: “verifica / no verifica”.
-- Idealmente simple pa que cualquier usuario lo pueda correr.
-
-### 8. Explicar Rejection Sampling  
-Nuestro RNG usa rejection sampling pa obtener números uniformes.  
-Ejemplo corto (para el informe):
-- Tomamos un número grande de 32 bits.
-- No todos los valores se dividen exacto por el rango.
-- Entonces rechazamos los valores que causarían sesgo.
-- Esto asegura distribución uniforme en [a, b].
-
-### 9. Revisar otras formas de Provably Fair  
-Nos pidieron estudiar alternativas además del commit + hash.  
-Podemos considerar:
-- **Smart contracts**: verificación descentralizada del barajado.
-- **VRFs** (Verifiable Random Functions): generan números impredecibles pero verificables.
-- **Randomness beacons** (Faros de Aleatoriedad): tipo NIST Beacon o drand, que proveen randomness pública.
+### 9. Revisar otras formas de Provably Fair
+Pendiente revisar:
+- VRFs  
+- Randomness beacons  
+- Smart contracts  
+(Solo análisis, no implementación aún.)
 
 ---
 
 ## Cosas que se pueden implementar (lista pa ir tachando)
 
 ### Parte criptográfica (la volá seria)
-- Hacer el módulo completo de aleatoriedad "provably fair" con SHA-256.
-- Añadir un MAC para asegurar que el servidor no cambie la client_seed ni modifique mensajes.
-- Incluir un esquema de compromiso formal (propiedades **hiding** y **binding**).
-- Documentar ataques posibles: servidor malicioso, jugador malicioso, terceros, colusión entre jugadores, etc.
-- Extender a AEAD si queremos confidencialidad y autenticidad juntas.
-- Investigar alternativas: VRF, faros de aleatoriedad, smart contracts (!!).
+- ~~Módulo RNG provably fair con SHA-256~~ ✔
+- ~~MAC para proteger client_seed~~ ✔
+- Explicar formalmente *hiding / binding*  
+- Documentar ataque del servidor / jugador / MITM  
+- Extender a AEAD (confidencialidad + integridad)  
+- Estudiar VRF, beacons, smart contracts
 
-### Parte del juego (lo que todos ven)
-- Mejorar blackjack:
-  - doblar (?)
-  - dividir pares (?)
-  - seguro si el dealer tiene A
-- Agregar juegos nuevos:
-  - ruleta (fácil)
-  - dados (?)
-  - poker (probablemente peludo, porque ahí sí hay estrategia).
+### Parte del juego
+- Mejorar Blackjack:
+  - Doble
+  - Dividir pares
+  - Seguro del dealer
+- Nuevos juegos:
+  - Ruleta (fácil)
+  - Dados (simple)
+  - Poker (difícil por decisiones estratégicas)
 
-### Infraestructura y calidad (pa que no se nos caiga)
+### Infraestructura
 - Tests unitarios del RNG:
-  - determinismo,
-  - mínima uniformidad.
-- Logs verificables por ronda:
-  - server_seed,
-  - client_seed original,
-  - nonce,
-  - commit,
-  - cartas entregadas.
-- Manejo de múltiples jugadores con un solo mazo.
-- Nonce que realmente aumenta por ronda.
-- Crear `verify.py` para verificación fácil.
+  - determinismo  
+  - distribución razonable
+- ~~Logs verificables~~ ✔
+- Múltiples jugadores con un solo mazo (pendiente)
+- ~~Nonce persistente~~ ✔
+- ~~Verificador externo (verify.py)~~ ✔
 
-### Mejoras de experiencia
-- Imprimir las cartas de manera más bonita.
-- Mensajitos más amigables para el jugador.
-- Una interfaz web muy simple para mostrar rondas.
-- Un verificador web donde el usuario pegue seeds y vea si calza.
+### Experiencia de usuario
+- Prints más bonitos
+- Mensajes más amigables
+- Interfaz web mínima
+- Verificador web (futuro)
 
 ---
 
 ## Cómo funciona el protocolo
 
-1. El servidor genera su `server_seed` y publica su hash (`commit`).  
-   Esto fija el comportamiento futuro del servidor (binding).
-
-2. El jugador envía su `client_seed`.  
-   O el sistema la crea, filo.
-
-3. Con ambas seeds + un `nonce` se crea el RNG que define todo el juego.
-
-4. Se juega la ronda:
-   - Se baraja con el RNG,
-   - El blackjack se ejecuta según reglas fijas del casino.
-
-5. El servidor revela su `server_seed`.  
-   El jugador verifica:
-   - commit correcto,
-   - reconstrucción exacta del mazo,
-   - que las jugadas del dealer concuerdan con las reglas del juego.
+1. Servidor genera `server_seed` y publica su commit.  
+2. Jugador envía `client_seed` (autenticada con MAC).  
+3. Se crea el RNG con ambas seeds + nonce.  
+4. Se juega la ronda (Blackjack individual o multijugador).  
+5. El servidor revela `server_seed`.  
+6. `verify.py` reconstruye y confirma que no hubo trampa.
 
 ---
 
-## Flujo mínimo pa probar (MVP)   
+## Flujo mínimo pa probar (MVP)
 
-- Abrir consola, ejecutar `python casino_blackjack.py`.
-- El programa:
-  - te muestra el commit,
-  - te pide la client_seed,
-  - reparte cartas,
-  - muestra resultado,
-  - revela la server_seed,
-  - y te deja verificar todo después.
+- Ejecutar `python main.py`.
+- Ver el commit.
+- Enviar o generar client_seed.
+- Jugar blackjack.
+- Ver el resultado.
+- El sistema guarda todo en logs silenciosos.
+- Ejecutar `python verify.py` para revisar todo.
 
 ---
 
 ## Qué falta pa tener un casino "decente"
 
-- El verificador externo `verify.py` (obligatorio según ayudante).
-- Manejo completo de 2+ jugadores con un solo mazo.
-- Implementar rondas consecutivas con `nonce` creciente.
-- Capítulo formal de seguridad: IND-CPA, UF-CMA, compromiso (hiding/binding).
-- Una interfaz decente y no pura consola.
-- Sistema de apuestas real y pagos completos del blackjack.
+- Multi-jugador real con un solo mazo.  
+- Variantes avanzadas del blackjack.  
+- Análisis formal de seguridad (IND-CPA, UF-CMA, compromiso).  
+- Interfaz decente, no solo consola.  
+- Sistema de apuestas real.
 
 ---
 
 ## Notas finales (por si acaso)
 
-- La aleatoriedad no se puede manipular a mitad del juego, porque el commit obliga al servidor a usar la seed original.
-- Autenticando los mensajes evitamos que el servidor "edite" la client_seed o que el jugador mande versiones falsas.
-- Nada depende de confiar en el servidor: todo queda demostrable con seeds + nonce + RNG verificable.
+- La aleatoriedad no se puede manipular a mitad del juego gracias al commit.  
+- La client_seed queda protegida con HMAC (UF-CMA).  
+- El verificador externo asegura que todo es reproducible.  
+- No se confía en el servidor: la gracia es que **no se necesita confiar**.
 
