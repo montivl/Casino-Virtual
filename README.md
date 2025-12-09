@@ -78,13 +78,13 @@ A diferencia de nuestro esquema actual donde el servidor debe revelar su semilla
 #### B. Smart Contracts (Blockchain)
 La lógica del juego (`blackjack.py`) podría vivir en un contrato inteligente (Ethereum/Solana).
 - **Ventaja:** La inmutabilidad del código es absoluta. "Code is Law". El casino no puede cambiar las reglas ni aunque quiera.
-- **Desventaja:** Costo de gas por transacción y latencia. Jugar una mano de Blackjack tomaría 15 segundos y costaría dinero real por cada carta pedida.
-- **Solución híbrida:** Usar el servidor para velocidad y la blockchain solo para anclar los hashes de los resultados finales.
+- **Desventaja:** Costo de gas por transacción y latencia. Jugar una mano de Blackjack tomaría 15 segundos y costaría dinero al ser dependiente de un blockchain. Tambien, es difícil de conseguir aleatoridad nativamente; requiere oráculos externos.
+- **Solución híbrida:** Usar el servidor para velocidad y la blockchain solo para anclar los hashes de los resultados finales. Los jugadores depositan dinero en el contrato (Blockchain). Luego, juegan 100 manos "fuera de la cadena" (Off-Chain) intercambiando mensajes firmados criptográficamente con el servidor. Al terminar, solo envían el resultado final a la Blockchain.
 
 #### C. Randomness Beacons (Faros de Aleatoriedad)
 Servicios públicos (como Drand o NIST) que emiten números aleatorios firmados periódicamente.
 - **Uso:** Podríamos usar el valor del "Beacon #5000" como semilla.
-- **Problema:** Son lentos (un valor cada 30 segundos). No sirven para juegos rápidos como Blackjack donde el usuario pide carta instantáneamente.
+- **Problema:** Son lentos (un valor cada 30 segundos). No sirven para juegos rápidos como Blackjack donde el usuario pide carta instantáneamente. Se presenta el problema de tener que coordinar con esta fuente externa de aleatoridad, obligando a los usuarios a cerrar las apuestas antes de la nueva generacion de numero, o sino un usuario podria preveer el valor del faro y apostar estrategicamente,
 
 ---
 
