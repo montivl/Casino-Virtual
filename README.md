@@ -64,12 +64,27 @@ El MAC simétrico cubre la integridad entre cliente y servidor en este proyecto.
 El RNG basado en SHA256 usa rejection sampling para obtener enteros uniformes.  
 Explicado en el informe y aplicado en `fair_random.py`.
 
-### 9. Revisar otras formas de Provably Fair
-Pendiente revisar:
-- VRFs  
-- Randomness beacons  
-- Smart contracts  
-(Solo análisis, no implementación aún.)
+### 9. Revisar otras formas de Provably Fair (Análisis Comparativo)
+
+Para este proyecto utilizamos un esquema de **Commitment Scheme (SHA-256)**, pero existen alternativas modernas utilizadas en blockchain:
+
+#### A. Verifiable Random Functions (VRF)
+A diferencia de nuestro esquema actual donde el servidor debe revelar su semilla ("abrir el compromiso") al final de cada juego, una VRF permite generar aleatoriedad verificable sin revelar la clave privada del generador.
+- **Cómo funciona:** `(Random_Output, Proof) = VRF(Secret_Key, Input)`.
+- **Verificación:** Cualquier usuario con la `Public_Key` puede validar que `Random_Output` fue generado correctamente a partir del `Input` sin conocer la `Secret_Key`.
+- **Ventaja:** Mayor seguridad a largo plazo para la identidad del servidor (no revela secretos).
+- **Por qué no lo usamos:** Requiere librerías criptográficas asimétricas más complejas (como curvas elípticas en `libsodium` o `ECVRF`) y para un casino centralizado web, el esquema de Commit/Reveal es el estándar de la industria (ej. Stake, BC.game) por su simplicidad y eficiencia computacional.
+
+#### B. Smart Contracts (Blockchain)
+La lógica del juego (`blackjack.py`) podría vivir en un contrato inteligente (Ethereum/Solana).
+- **Ventaja:** La inmutabilidad del código es absoluta. "Code is Law". El casino no puede cambiar las reglas ni aunque quiera.
+- **Desventaja:** Costo de gas por transacción y latencia. Jugar una mano de Blackjack tomaría 15 segundos y costaría dinero real por cada carta pedida.
+- **Solución híbrida:** Usar el servidor para velocidad y la blockchain solo para anclar los hashes de los resultados finales.
+
+#### C. Randomness Beacons (Faros de Aleatoriedad)
+Servicios públicos (como Drand o NIST) que emiten números aleatorios firmados periódicamente.
+- **Uso:** Podríamos usar el valor del "Beacon #5000" como semilla.
+- **Problema:** Son lentos (un valor cada 30 segundos). No sirven para juegos rápidos como Blackjack donde el usuario pide carta instantáneamente.
 
 ---
 
@@ -78,10 +93,10 @@ Pendiente revisar:
 ### Parte criptográfica (la volá seria)
 - ~~Módulo RNG provably fair con SHA-256~~ ✔
 - ~~MAC para proteger client_seed~~ ✔
-- Explicar formalmente *hiding / binding*  
+- ~~Explicar formalmente *hiding / binding*~~ ✔
 - Documentar ataque del servidor / jugador / MITM  
 - Extender a AEAD (confidencialidad + integridad)  
-- Estudiar VRF, beacons, smart contracts
+- ~~Estudiar VRF, beacons, smart contracts~~ ✔
 
 ### Parte del juego
 - Mejorar Blackjack:
@@ -95,10 +110,10 @@ Pendiente revisar:
 
 ### Infraestructura
 - Tests unitarios del RNG:
-  - determinismo  
-  - distribución razonable
+  - ~~determinismo~~  ✔
+  - ~~distribución razonable~~ ✔
 - ~~Logs verificables~~ ✔
-- Múltiples jugadores con un solo mazo (pendiente)
+- ~~Múltiples jugadores con un solo mazo (pendiente)~~ ✔
 - ~~Nonce persistente~~ ✔
 - ~~Verificador externo (verify.py)~~ ✔
 
@@ -135,7 +150,7 @@ Pendiente revisar:
 
 ## Qué falta pa tener un casino "decente"
 
-- Multi-jugador real con un solo mazo.  
+- ~~Multi-jugador real con un solo mazo.~~ ✔
 - Variantes avanzadas del blackjack.  
 - Análisis formal de seguridad (IND-CPA, UF-CMA, compromiso).  
 - Interfaz decente, no solo consola.  
