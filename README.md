@@ -1,7 +1,7 @@
 # Casino-Virtual
 
 Básicamente un casino donde el servidor no puede hacerle la desconocida al jugador, y todo queda verificable criptográficamente.  
-La idea es que el jugador pueda decir "demuéstrame que no me estái cagando", y nuestro super casino responda "EVIDENCIA".
+La idea es que el jugador pueda decir "demuéstrame que no me estái estafando", y nuestro super casino responda "EVIDENCIA".
 
 ---
 
